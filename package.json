@@ -1,0 +1,38 @@
+{
+  "name": "koa-imsession",
+  "description": "Pretty simple and performance koa session middleware using immutability",
+  "repository": "xuxucode/koa-imsession",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "koa",
+    "middleware",
+    "session",
+    "cookie"
+  ],
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "tsc -p tsconfig.test.json; node --test"
+  },
+  "dependencies": {
+    "debug": "^4.3.4"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.8",
+    "@types/koa": "^2.13.6",
+    "@types/set-cookie-parser": "^2.4.2",
+    "@types/supertest": "^2.0.12",
+    "koa": "^2.14.2",
+    "set-cookie-parser": "^2.6.0",
+    "supertest": "^6.3.3",
+    "typescript": "^5.1.6"
+  }
+}

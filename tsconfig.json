@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "nodenext",
+    "baseUrl": "./",
+    "allowJs": true,
+    "declaration": true,
+    "sourceMap": false,
+    "outDir": "dist",
+    "newLine": "lf",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noUnusedLocals": false,
+    "skipLibCheck": true
+  },
+  "exclude": [
+    "coverage",
+    "dist",
+    "node_modules"
+  ]
+}
