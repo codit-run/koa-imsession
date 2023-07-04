@@ -3,45 +3,47 @@ import assert from 'node:assert'
 import Koa from 'koa'
 import setCookie from 'set-cookie-parser'
 import request from 'supertest'
-import { session } from './session.js'
-import { MemoryStore } from './store.js'
+import { imsession } from './session.js'
+import { MemoryStore } from './memory-store.js'
 
 const store = new MemoryStore()
 
 const app = new Koa()
-app.use(session({ store }))
+app.use(imsession({ store }))
 app.use(async function (ctx) {
   const pathname = new URL('http://localhost' + ctx.url).pathname
   switch (pathname) {
     case '/get-session': {
       ctx.body = ctx.session || 'no session'
-      break;
+      return
     }
     case '/set-session': {
       ctx.session = { message: 'hello' + (ctx.query.hello ?? '') }
       ctx.body = ctx.session
-      break;
+      return
     }
     case '/unset-session': {
       const action = ctx.query.action || 'null'
       switch (action) {
         case 'false':
           ctx.session = false
-          break;
+          break
         case 'null':
+          // @ts-ignore
           ctx.session = null
-          break;
+          break
         case 'undefined':
+          // @ts-ignore
           ctx.session = undefined
-          break;
+          break
       }
       ctx.body = ctx.session || 'no session'
-      break;
+      break
     }
     case '/regenerate-sessionid': {
       ctx.session = true
       ctx.body = ctx.session || 'no session'
-      break;
+      return
     }
   }
 })
@@ -51,7 +53,7 @@ async function sessionAgent() {
   const res = await agent
     .post('/set-session')
     .expect(200)
-    .expect('Set-Cookie', /^koasessid=\w{32};/)
+    .expect('Set-Cookie', /^connect.sid=\w{32};/)
     .expect({ message: 'hello' })
 
   return { agent, res }
@@ -59,7 +61,7 @@ async function sessionAgent() {
 
 function getCookie(res: request.Response) {
   const cookies = setCookie.parse(res.get('Set-Cookie'))
-  return cookies.find(cookie => cookie.name === 'koasessid')
+  return cookies.find(cookie => cookie.name === 'connect.sid')
 }
 
 test.beforeEach(() => {
@@ -90,7 +92,7 @@ test('sets session', async (t) => {
   const res = await request(app.callback())
     .post('/set-session')
     .expect(200)
-    .expect('Set-Cookie', /^koasessid=\w{32};/)
+    .expect('Set-Cookie', /^connect.sid=\w{32};/)
     .expect({ message: 'hello' })
 
   const cookie = getCookie(res)
@@ -104,7 +106,7 @@ test('sets new session when data is set', async (t) => {
   const res2 = await agent
     .get('/set-session?hello=world')
     .expect(200)
-    .expect('Set-Cookie', /^koasessid=\w{32};/)
+    .expect('Set-Cookie', /^connect.sid=\w{32};/)
     .expect({ message: 'helloworld' })
   const cookie2 = getCookie(res2)
   assert.strictEqual(cookie2!.value, cookie!.value, 'session ID not changed')
@@ -113,7 +115,7 @@ test('sets new session when data is set', async (t) => {
   const res3 = await agent
     .get('/set-session?hello=world')
     .expect(200)
-    .expect('Set-Cookie', /^koasessid=\w{32};/)
+    .expect('Set-Cookie', /^connect.sid=\w{32};/)
     .expect({ message: 'helloworld' })
   const cookie3 = getCookie(res3)
   assert.strictEqual(cookie3!.value, cookie2!.value, 'session ID not changed')
@@ -127,7 +129,7 @@ test('unsets session', async (t) => {
   const res2 = await agent
     .get('/unset-session?action=null')
     .expect(200)
-    .expect('Set-Cookie', /^koasessid=;/)
+    .expect('Set-Cookie', /^connect.sid=;/)
     .expect('no session')
   const cookie2 = getCookie(res2)
   assert.strictEqual(cookie2!.expires!.toUTCString(), 'Thu, 01 Jan 1970 00:00:00 GMT', 'cookie removal')
@@ -153,7 +155,7 @@ test('regenerates sessionid', async (t) => {
   const res2 = await agent
     .get('/regenerate-sessionid')
     .expect(200)
-    .expect('Set-Cookie', /^koasessid=\w{32};/)
+    .expect('Set-Cookie', /^connect.sid=\w{32};/)
     .expect({ message: 'hello' })
   const cookie2 = getCookie(res2)
   assert.notStrictEqual(cookie2!.value, cookie!.value, 'session ID changed')

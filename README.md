@@ -22,13 +22,13 @@ $ npm install koa-imsession
 ### View counter
 
 ```js
-import { session } from './dist/index.js'
+import { imsession } from './dist/index.js'
 import Koa from 'koa'
 const app = new Koa()
 
 // All options are optional.
 const options = {
-  name: 'koasessid', // the name of the session ID cookie
+  name: 'connect.sid', // the name of the session ID cookie
   // resolveId, // how to get/set/generate session id
   // store, // your custom store instead of the default `MemoryStore` instance
   cookie: { // cookie options, see https://github.com/pillarjs/cookies
@@ -36,7 +36,7 @@ const options = {
   },
 }
 
-app.use(session(options))
+app.use(imsession(options))
 
 app.use(ctx => {
   ctx.session = { views: (ctx.session?.views ?? 0) + 1 } // immutable object

@@ -1,10 +1,6 @@
-export interface Store<T extends object = object> {
-  get(sessId: string): Promise<T | null>
-  set(sessId: string, sess: T, maxAge: number): Promise<void>
-  destroy(sessId: string): Promise<void>
-}
+import type { SessionData, Store } from "./types.js"
 
-type Session<T extends object> = {
+type Session<T extends SessionData> = {
   data: T
   expires: number
 }
@@ -12,16 +8,16 @@ type Session<T extends object> = {
 /**
  * A session store in memory.
  */
-export class MemoryStore<T extends object = object> implements Store<T> {
+export class MemoryStore<T extends SessionData> implements Store<T> {
   sessions: Record<string, Session<T>> = Object.create(null)
 
   /**
    * Fetches session by the given session ID.
    */
-  async get(sessId: string): Promise<T | null> {
+  async get(sessionId: string): Promise<T | null> {
     return new Promise<T | null>((resolve, _) => {
       setImmediate(() => {
-        const data = this.#getSessionData(sessId)
+        const data = this.#getSessionData(sessionId)
         resolve(data)
       })
     })
@@ -30,13 +26,14 @@ export class MemoryStore<T extends object = object> implements Store<T> {
   /**
    * Commits the given session associated with the given sessionId to the store.
    */
-  async set(sessId: string, sess: T, maxAge: number): Promise<void> {
-    if (!sess || typeof sess !== 'object') throw new Error('session must be an object')
+  async set(sessionId: string, sessionData: T, maxAge: number): Promise<void> {
+    if (!sessionData || typeof sessionData !== 'object')
+      throw new Error('session data must be an object')
 
     return new Promise((resolve, _) => {
       setImmediate(() => {
-        this.sessions[sessId] = {
-          data: sess,
+        this.sessions[sessionId] = {
+          data: sessionData,
           expires: Date.now() + maxAge
         }
         resolve()
@@ -47,10 +44,10 @@ export class MemoryStore<T extends object = object> implements Store<T> {
   /**
    * Destroys the session associated with the given session ID.
    */
-  async destroy(sessId: string): Promise<void> {
+  async destroy(sessionId: string): Promise<void> {
     return new Promise((resolve, _) => {
       setImmediate(() => {
-        delete this.sessions[sessId]
+        delete this.sessions[sessionId]
         resolve()
       })
     })
@@ -59,17 +56,17 @@ export class MemoryStore<T extends object = object> implements Store<T> {
   /**
    * Gets session data from the store.
    */
-  #getSessionData(sessId: string): T | null {
-    const sess = this.sessions[sessId]
-    if (!sess) return null
+  #getSessionData(sessionId: string): T | null {
+    const session = this.sessions[sessionId]
+    if (!session) return null
 
-    if (sess.expires <= Date.now()) {
+    if (session.expires <= Date.now()) {
       // Destroy expired session.
-      delete this.sessions[sessId]
+      delete this.sessions[sessionId]
       return null
     }
 
-    return sess.data
+    return session.data
   }
 
   _clear() {

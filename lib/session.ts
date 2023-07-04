@@ -1,41 +1,17 @@
 import { randomBytes } from 'node:crypto'
-import type Cookies from 'cookies'
 import Debug from 'debug'
 import type Koa from 'koa'
-import { MemoryStore, type Store } from './store.js'
+import { MemoryStore } from './memory-store.js'
+import type { Options, ResolveId, SessionData } from './types.js'
 
 const debug = Debug('koa-imsession')
 const SESSION = Symbol('SESSION')
 
-export interface Options {
-  /**
-   * The name of the session which is used as cookie name.
-   *
-   * The default value is `koasessid`.
-   */
-  name?: string
-
-  /**
-   * Session ID resolver, can get/set/gen session ID.
-   *
-   * The default value is `defaultResolveId`.
-   */
-  resolveId?: typeof defaultResolveId
-
-  /**
-   * Session store. A `MemoryStore` is used by default for development purpose.
-   * You should provide a stote (Redis, MongoDB) instead on production.
-   *
-   * The default value is a `MemoryStore` instance.
-   */
-  store?: Store
-
-  /**
-   * Settings object for the session ID cookie.
-   *
-   * @see https://github.com/pillarjs/cookies
-   */
-  cookie?: Cookies.SetOption
+declare module 'koa' {
+  interface DefaultContext {
+    // FIXME: https://github.com/DefinitelyTyped/DefinitelyTyped/pull/65976
+    [SESSION]: Session
+  }
 }
 
 interface Session {
@@ -44,61 +20,33 @@ interface Session {
   readonly options: Required<Options> & { cookie: { signed: boolean; maxAge: number } }
 }
 
-export interface SessionData {
-  [key: string]: any
-}
-
-declare module 'koa' {
-  interface ExtendableContext {
-    [SESSION]: Session
-    get session(): SessionData
-    set session(data: SessionData | boolean)
-  }
-}
-
-export const defaultResolveId = {
-  get(ctx: Koa.Context): string | null {
-    const sess: Session = ctx[SESSION]
-    return ctx.cookies.get(sess.options.name, sess.options.cookie) || null
-  },
-
-  set(ctx: Koa.Context, id: string | null): void {
-    const sess: Session = ctx[SESSION]
-    ctx.cookies.set(sess.options.name, id, sess.options.cookie) // null id will remove the cookie
-  },
-
-  gen(ctx: Koa.Context): string {
-    return randomBytes(16).toString('hex')
-  }
-}
-
-export function session(opts: Options): Koa.Middleware {
+export function imsession(opts: Options): Koa.Middleware {
   const options = parseOptions(opts)
   debug('session options %O', options)
 
   return async function middleware(ctx, next) {
-    const sess = extendContext(ctx, options)
-    const sessId = options.resolveId.get(ctx)
-    const sessData = sessId ? await options.store.get(sessId) : null
-    sess.id = sessId
-    sess.data = sessData
+    const session = extendContext(ctx, options)
+    const sessionId = options.resolveId.get(ctx)
+    const sessionData = sessionId ? await options.store.get(sessionId) : null
+    session.id = sessionId
+    session.data = sessionData
 
     try {
       await next()
     } finally {
-      const hasNewId = sess.id !== sessId
-      if (sess.data !== sessData || hasNewId) {
-        if (hasNewId && sessId)
-          await sess.options.store.destroy(sessId)
+      const hasNewId = session.id !== sessionId
+      if (session.data !== sessionData || hasNewId) {
+        if (hasNewId && sessionId)
+          await session.options.store.destroy(sessionId)
         await commit(ctx)
       }
     }
   }
 }
 
-function parseOptions(opts: Options) {
+function parseOptions(opts: Options): Session['options'] {
   const {
-    name = 'koasessid',
+    name = 'connect.sid',
     resolveId = defaultResolveId,
     store = new MemoryStore(),
   } = opts
@@ -106,7 +54,7 @@ function parseOptions(opts: Options) {
   if (store instanceof MemoryStore)
     console.warn('You are using the memory store for sessions. Must not use it on production environment.')
 
-  const cookie = { ...opts.cookie }
+  const cookie = { ...opts.cookie } as typeof opts.cookie & { maxAge: number; signed: boolean }
 
   if (!cookie.maxAge)
     cookie.maxAge = cookie.expires
@@ -128,52 +76,71 @@ function parseOptions(opts: Options) {
  * Extends context instance, add session properties.
  */
 function extendContext(ctx: Koa.Context, options: Options): Session {
-  const sess: Session = Object.create(null, {
+  const session: Session = Object.create(null, {
     id: { value: null, writable: true },
     data: { value: null, writable: true },
     options: { value: options },
   } satisfies Record<keyof Session, PropertyDescriptor>)
 
   Object.defineProperties(ctx, {
-    [SESSION]: { value: sess },
+    [SESSION]: { value: session },
     session: {
-      get: () => sess.data,
+      get: () => session.data,
       set(data: SessionData | boolean) {
         if (data === true) {
-          if (sess.id) // generate a new one only when the id exists
-            sess.id = sess.options.resolveId.gen(ctx)
+          if (session.id) // generate a new one only when the id exists
+            session.id = session.options.resolveId.generate(ctx)
         } else {
-          sess.data = data || null
+          session.data = data || null
         }
       },
     },
   })
 
-  return sess
+  return session
 }
 
 /**
  * Commits the session changes or removal.
  */
 async function commit(ctx: Koa.Context) {
-  const sess: Session = ctx[SESSION]
+  const session: Session = ctx[SESSION]
 
-  if (!sess.data) {
-    if (sess.id) {
-      await sess.options.store.destroy(sess.id)
-      sess.options.resolveId.set(ctx, null)
+  if (!session.data) {
+    if (session.id) {
+      await session.options.store.destroy(session.id)
+      session.options.resolveId.set(ctx, null)
     }
-    debug('[commit] remove session: %s', sess.id)
+    debug('[commit] remove session: %s', session.id)
     return
   }
 
-  debug('[commit] set session: %s:%O', sess.id, sess.data)
+  debug('[commit] set session: %s:%O', session.id, session.data)
 
-  const opts = sess.options
-  const sessId = sess.id || opts.resolveId.gen(ctx)
-  const sessData = sess.data
-  const maxAge = opts.cookie.maxAge + 10_000 // 10s longer than cookie
+  const options = session.options
+  const sessionId = session.id || options.resolveId.generate(ctx)
+  const sessionData = session.data
+  const maxAge = options.cookie.maxAge + 10_000 // 10s longer than cookie
 
-  await opts.store.set(sessId, sessData, maxAge)
-  opts.resolveId.set(ctx, sessId)
+  await options.store.set(sessionId, sessionData, maxAge)
+  options.resolveId.set(ctx, sessionId)
+}
+
+/**
+ * Resolve session ID by cookie.
+ */
+export const defaultResolveId: ResolveId = {
+  get(ctx: Koa.Context): string | null {
+    const session: Session = ctx[SESSION]
+    return ctx.cookies.get(session.options.name, session.options.cookie) || null
+  },
+
+  set(ctx: Koa.Context, sessionId: string | null): void {
+    const session: Session = ctx[SESSION]
+    ctx.cookies.set(session.options.name, sessionId, session.options.cookie) // null session id will remove the cookie
+  },
+
+  generate(ctx: Koa.Context): string {
+    return randomBytes(16).toString('hex')
+  }
 }

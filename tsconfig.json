@@ -5,7 +5,6 @@
     "module": "ESNext",
     "moduleResolution": "nodenext",
     "baseUrl": "./",
-    "allowJs": true,
     "declaration": true,
     "sourceMap": false,
     "outDir": "dist",
