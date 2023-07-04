@@ -10,7 +10,7 @@ const SESSION = Symbol('SESSION')
 declare module 'koa' {
   interface DefaultContext {
     // FIXME: https://github.com/DefinitelyTyped/DefinitelyTyped/pull/65976
-    [SESSION]: Session
+    [key: keyof any]: any
   }
 }
 
@@ -25,7 +25,8 @@ export function imsession(opts: Options): Koa.Middleware {
   debug('session options %O', options)
 
   return async function middleware(ctx, next) {
-    const session = extendContext(ctx, options)
+    initContextSession(ctx, options)
+    const session = ctx[SESSION]
     const sessionId = options.resolveId.get(ctx)
     const sessionData = sessionId ? await options.store.get(sessionId) : null
     session.id = sessionId
@@ -75,29 +76,38 @@ function parseOptions(opts: Options): Session['options'] {
 /**
  * Extends context instance, add session properties.
  */
-function extendContext(ctx: Koa.Context, options: Options): Session {
-  const session: Session = Object.create(null, {
-    id: { value: null, writable: true },
-    data: { value: null, writable: true },
-    options: { value: options },
-  } satisfies Record<keyof Session, PropertyDescriptor>)
+function initContextSession(ctx: Koa.Context, options: Options): void {
+  function initSession() {
+    return Object.create(null, {
+      id: { value: null, writable: true },
+      data: { value: null, writable: true },
+      options: { value: options },
+    } satisfies Record<keyof Session, PropertyDescriptor>)
+  }
+
+  function getSessionData(this: Koa.Context): SessionData | null {
+    return this[SESSION].data
+  }
+
+  function setSessionData(this: Koa.Context, data: SessionData | boolean): void {
+    const session = this[SESSION]
+    if (data === true) {
+      if (session.id) // generate a new one only when the id exists
+        session.id = session.options.resolveId.generate(this)
+    } else {
+      session.data = data || null
+    }
+  }
 
   Object.defineProperties(ctx, {
-    [SESSION]: { value: session },
+    [SESSION]: {
+      value: initSession(), // readonly
+    },
     session: {
-      get: () => session.data,
-      set(data: SessionData | boolean) {
-        if (data === true) {
-          if (session.id) // generate a new one only when the id exists
-            session.id = session.options.resolveId.generate(ctx)
-        } else {
-          session.data = data || null
-        }
-      },
+      get: getSessionData,
+      set: setSessionData,
     },
   })
-
-  return session
 }
 
 /**
