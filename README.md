@@ -22,7 +22,7 @@ $ npm install koa-imsession
 ### View counter
 
 ```js
-import { imsession } from './dist/index.js'
+import { imsession } from 'koa-imsession'
 import Koa from 'koa'
 const app = new Koa()
 
@@ -54,7 +54,7 @@ ctx.session = { id: 1, status: 'pending_approval' }
 
 ### Update session
 
-Session object is immutable. To update it set a new object to it.
+**Session data is immutable.** Set the session to a new object.
 
 ```js
 const oldSession = ctx.session
