@@ -1,4 +1,4 @@
-import type { SessionData, Store } from "./types.js"
+import type { SessionData, SessionStore } from "./types.js"
 
 type Session<T extends SessionData> = {
   data: T
@@ -8,7 +8,7 @@ type Session<T extends SessionData> = {
 /**
  * A session store in memory.
  */
-export class MemoryStore<T extends SessionData> implements Store<T> {
+export class MemoryStore<T extends SessionData> implements SessionStore<T> {
   sessions: Record<string, Session<T>> = Object.create(null)
 
   /**

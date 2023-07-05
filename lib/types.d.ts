@@ -1,14 +1,7 @@
-import type Koa from 'koa'
 import type Cookies from 'cookies'
+import type { SessionIdResolver } from './sessionid-resolver.ts'
 
-declare module 'koa' {
-  interface DefaultContext {
-    get session(): SessionData
-    set session(data: SessionData | boolean)
-  }
-}
-
-export interface Options {
+export interface SessionOptions {
   /**
    * The name of the session which is used as cookie name.
    *
@@ -19,9 +12,9 @@ export interface Options {
   /**
    * Session ID resolver, can get/set/gen session ID.
    *
-   * The default value is `defaultResolveId`.
+   * The default value is a `SessionIdResolver` instance.
    */
-  resolveId?: ResolveId
+  idResolver?: SessionIdResolver
 
   /**
    * Session store. A `MemoryStore` is used by default for development purpose.
@@ -29,7 +22,7 @@ export interface Options {
    *
    * The default value is a `MemoryStore` instance.
    */
-  store?: Store<SessionData>
+  store?: SessionStore<SessionData>
 
   /**
    * Settings object for the session ID cookie.
@@ -43,22 +36,7 @@ export interface SessionData {
   [key: string]: any
 }
 
-export interface ResolveId {
-  /**
-   * Gets session ID.
-   */
-  get(ctx: Koa.Context): string | null
-  /**
-   * Sets session ID.
-   */
-  set(ctx: Koa.Context, id: string | null): void
-  /**
-   * Generates session ID only on necessary.
-   */
-  generate(ctx: Koa.Context): string
-}
-
-export interface Store<T extends SessionData = SessionData> {
+export interface SessionStore<T extends SessionData = SessionData> {
   get(sessionId: string): Promise<T | null>
   set(sessionId: string, sessionData: T, maxAge: number): Promise<void>
   destroy(sessionId: string): Promise<void>

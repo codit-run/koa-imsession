@@ -29,7 +29,7 @@ const app = new Koa()
 // All options are optional.
 const options = {
   name: 'connect.sid', // the name of the session ID cookie
-  // resolveId, // how to get/set/generate session id
+  // idResolver, // how to get/set/generate session ID
   // store, // your custom store instead of the default `MemoryStore` instance
   cookie: { // cookie options, see https://github.com/pillarjs/cookies
     maxAge: 86400_000, // default value is 1 day
@@ -67,7 +67,7 @@ ctx.session = { ...oldSession, status: 'activated' }
 ctx.session = false // by default a `Set-Cookie` header will be sent to remove the cookie
 ```
 
-### Regenerate session id (e.g. renew session)
+### Regenerate session ID (e.g. renew session)
 
 ```js
 ctx.session = true // a new session ID is generated and existing session data is preserved

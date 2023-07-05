@@ -44,7 +44,7 @@ test('gets existing', async (t) => {
 
 test('gets expired', async (t) => {
   const store = new MemoryStore()
-  const session = await fill(store, 1)
+  const session = await fill(store, 4)
 
   assert.deepStrictEqual(await store.get(session.id), session.data)
   await sleep(10)

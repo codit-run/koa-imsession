@@ -1,14 +1,17 @@
-import { randomBytes } from 'node:crypto'
 import Debug from 'debug'
 import type Koa from 'koa'
 import { MemoryStore } from './memory-store.js'
-import type { Options, ResolveId, SessionData } from './types.js'
+import type { SessionOptions, SessionData } from './types.js'
+import { SessionIdResolver } from './sessionid-resolver.js'
 
 const debug = Debug('koa-imsession')
 const SESSION = Symbol('SESSION')
 
 declare module 'koa' {
   interface DefaultContext {
+    get session(): SessionData
+    set session(data: SessionData | boolean)
+
     // FIXME: https://github.com/DefinitelyTyped/DefinitelyTyped/pull/65976
     [key: keyof any]: any
   }
@@ -17,20 +20,25 @@ declare module 'koa' {
 interface Session {
   id: string | null
   data: SessionData | null
-  readonly options: Required<Options> & { cookie: { signed: boolean; maxAge: number } }
 }
 
-export function imsession(opts: Options): Koa.Middleware {
+interface ParsedSessionOptions extends Required<SessionOptions> {
+  cookie: { maxAge: number }
+}
+
+export function imsession(opts: SessionOptions = {}): Koa.Middleware {
   const options = parseOptions(opts)
   debug('session options %O', options)
 
   return async function middleware(ctx, next) {
-    initContextSession(ctx, options)
-    const session = ctx[SESSION]
-    const sessionId = options.resolveId.get(ctx)
+    Object.defineProperty(ctx, SESSION, { value: Object.create(null) })
+    const session: Session = ctx[SESSION]
+    const sessionId = options.idResolver.get(ctx)
     const sessionData = sessionId ? await options.store.get(sessionId) : null
     session.id = sessionId
     session.data = sessionData
+
+    extendContextSession(ctx, options)
 
     try {
       await next()
@@ -38,88 +46,72 @@ export function imsession(opts: Options): Koa.Middleware {
       const hasNewId = session.id !== sessionId
       if (session.data !== sessionData || hasNewId) {
         if (hasNewId && sessionId)
-          await session.options.store.destroy(sessionId)
-        await commit(ctx)
+          await options.store.destroy(sessionId)
+        await commit(ctx, options)
       }
     }
   }
 }
 
-function parseOptions(opts: Options): Session['options'] {
+function parseOptions(opts: SessionOptions): ParsedSessionOptions {
   const {
     name = 'connect.sid',
-    resolveId = defaultResolveId,
     store = new MemoryStore(),
   } = opts
 
   if (store instanceof MemoryStore)
     console.warn('You are using the memory store for sessions. Must not use it on production environment.')
 
-  const cookie = { ...opts.cookie } as typeof opts.cookie & { maxAge: number; signed: boolean }
-
+  const cookie = { ...opts.cookie } as typeof opts.cookie & { maxAge: number }
   if (!cookie.maxAge)
     cookie.maxAge = cookie.expires
       ? cookie.expires.getTime() - Date.now()
       : 86400_000 // defaults to 1 day
 
-  if (cookie.signed == null)
-    cookie.signed = false
+  const idResolver = opts.idResolver ?? new SessionIdResolver({ name, cookie })
 
   return {
     name,
-    resolveId,
+    idResolver,
     store,
     cookie,
   }
 }
 
 /**
- * Extends context instance, add session properties.
+ * Extends context instance, adds `session` property.
  */
-function initContextSession(ctx: Koa.Context, options: Options): void {
-  function initSession() {
-    return Object.create(null, {
-      id: { value: null, writable: true },
-      data: { value: null, writable: true },
-      options: { value: options },
-    } satisfies Record<keyof Session, PropertyDescriptor>)
-  }
-
+function extendContextSession(ctx: Koa.Context, options: ParsedSessionOptions): void {
   function getSessionData(this: Koa.Context): SessionData | null {
     return this[SESSION].data
   }
 
   function setSessionData(this: Koa.Context, data: SessionData | boolean): void {
-    const session = this[SESSION]
+    const session: Session = this[SESSION]
     if (data === true) {
-      if (session.id) // generate a new one only when the id exists
-        session.id = session.options.resolveId.generate(this)
+      if (session.id) // generate a new one only when the ID exists
+        session.id = options.idResolver.generate(this)
     } else {
       session.data = data || null
     }
   }
 
-  Object.defineProperties(ctx, {
-    [SESSION]: {
-      value: initSession(), // readonly
-    },
-    session: {
-      get: getSessionData,
-      set: setSessionData,
-    },
+  Object.defineProperty(ctx, 'session', {
+    get: getSessionData,
+    set: setSessionData,
   })
 }
 
 /**
  * Commits the session changes or removal.
  */
-async function commit(ctx: Koa.Context) {
+async function commit(ctx: Koa.Context, options: ParsedSessionOptions) {
   const session: Session = ctx[SESSION]
 
   if (!session.data) {
     if (session.id) {
-      await session.options.store.destroy(session.id)
-      session.options.resolveId.set(ctx, null)
+      await options.store.destroy(session.id)
+      options.idResolver.set(ctx, null)
     }
     debug('[commit] remove session: %s', session.id)
     return
@@ -127,30 +119,10 @@ async function commit(ctx: Koa.Context) {
 
   debug('[commit] set session: %s:%O', session.id, session.data)
 
-  const options = session.options
-  const sessionId = session.id || options.resolveId.generate(ctx)
+  const sessionId = session.id || options.idResolver.generate(ctx)
   const sessionData = session.data
   const maxAge = options.cookie.maxAge + 10_000 // 10s longer than cookie
 
   await options.store.set(sessionId, sessionData, maxAge)
-  options.resolveId.set(ctx, sessionId)
-}
-
-/**
- * Resolve session ID by cookie.
- */
-export const defaultResolveId: ResolveId = {
-  get(ctx: Koa.Context): string | null {
-    const session: Session = ctx[SESSION]
-    return ctx.cookies.get(session.options.name, session.options.cookie) || null
-  },
-
-  set(ctx: Koa.Context, sessionId: string | null): void {
-    const session: Session = ctx[SESSION]
-    ctx.cookies.set(session.options.name, sessionId, session.options.cookie) // null session id will remove the cookie
-  },
-
-  generate(ctx: Koa.Context): string {
-    return randomBytes(16).toString('hex')
-  }
+  options.idResolver.set(ctx, sessionId)
 }

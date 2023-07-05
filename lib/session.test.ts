@@ -1,95 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert'
-import type { IncomingMessage, ServerResponse } from 'node:http'
-import Koa from 'koa'
-import setCookie from 'set-cookie-parser'
 import request from 'supertest'
-import { defaultResolveId, imsession } from './session.js'
-import { MemoryStore } from './memory-store.js'
-
-const store = new MemoryStore()
-
-const app = new Koa()
-app.use(imsession({ store }))
-app.use(async function (ctx) {
-  const pathname = new URL('http://localhost' + ctx.url).pathname
-  switch (pathname) {
-    case '/get-session': {
-      ctx.body = ctx.session || 'no session'
-      return
-    }
-    case '/set-session': {
-      ctx.session = { message: 'hello' + (ctx.query.hello ?? '') }
-      ctx.body = ctx.session
-      return
-    }
-    case '/unset-session': {
-      const action = ctx.query.action || 'null'
-      switch (action) {
-        case 'false':
-          ctx.session = false
-          break
-        case 'null':
-          // @ts-ignore
-          ctx.session = null
-          break
-        case 'undefined':
-          // @ts-ignore
-          ctx.session = undefined
-          break
-      }
-      ctx.body = ctx.session || 'no session'
-      break
-    }
-    case '/regenerate-sessionid': {
-      ctx.session = true
-      ctx.body = ctx.session || 'no session'
-      return
-    }
-  }
-})
-
-function createContext(options?: { req?: Partial<IncomingMessage>, res?: Partial<ServerResponse> }): Koa.Context {
-  const req = {
-    url: 'http://example.com',
-    headers: {},
-    ...options?.req,
-  } as IncomingMessage
-
-  const resHeaders = {} as Record<string, any>
-  const res = {
-    getHeaders: () => resHeaders,
-    getHeaderNames: () => Object.keys(resHeaders),
-    getHeader: field => resHeaders[field.toLowerCase()],
-    setHeader(field, val) { resHeaders[field.toLowerCase()] = val; return this },
-    removeHeader(field) { delete resHeaders[field.toLowerCase()] },
-    ...options?.res,
-  } as ServerResponse
-
-  const ctx = app.createContext(req, res)
-  Object.defineProperty(ctx.request, 'secure', { get() { return false } })
-
-  // Run middleware.
-  imsession({})(ctx, async () => { })
-
-  return ctx
-}
-
-async function sessionAgent() {
-  const agent = request.agent(app.callback())
-  const res = await agent
-    .post('/set-session')
-    .expect(200)
-    .expect('Set-Cookie', /^connect.sid=\w{32};/)
-    .expect({ message: 'hello' })
-
-  return { agent, res }
-}
-
-function getCookie(res: request.Response) {
-  const cookies = setCookie.parse(res.get('Set-Cookie'))
-  return cookies.find(cookie => cookie.name === 'connect.sid')
-}
+import {
+  app,
+  createContext,
+  getCookie,
+  runSession,
+  sessionAgent,
+  store,
+} from './test-utils.js'
 
 test.beforeEach(() => {
   store._clear()
@@ -97,11 +16,13 @@ test.beforeEach(() => {
 
 test('gets context.session', (t) => {
   const ctx = createContext()
+  runSession(ctx)
   assert.strictEqual(ctx.session, null)
 })
 
 test('sets context.session', (t) => {
   const ctx = createContext()
+  runSession(ctx)
   ctx.session = { id: 1 }
   assert.deepStrictEqual(ctx.session, { id: 1 })
 })
@@ -207,26 +128,4 @@ test('regenerates no new sessionid', async (t) => {
     .expect(200)
     .expect('no session')
   assert.strictEqual(res.get('Set-Cookie'), undefined, 'no cookie set')
-})
-
-test('defaultResolveId generates session ID', async (t) => {
-  const ctx = createContext()
-  assert.match(defaultResolveId.generate(ctx), /^\w{32}$/)
-})
-
-test('defaultResolveId gets session ID', async (t) => {
-  const ctx = createContext({
-    req: {
-      headers: {
-        'cookie': 'connect.sid=c650059107b876d453cb25a6d2dd0e36',
-      },
-    },
-  })
-  assert.strictEqual(defaultResolveId.get(ctx), 'c650059107b876d453cb25a6d2dd0e36')
-})
-
-test('defaultResolveId sets session ID', async (t) => {
-  const ctx = createContext()
-  defaultResolveId.set(ctx, 'c650059107b876d453cb25a6d2dd0e36')
-  assert.match((ctx.res.getHeader('Set-Cookie') as string[])[0], /^connect.sid=c650059107b876d453cb25a6d2dd0e36;/)
 })
