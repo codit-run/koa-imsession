@@ -9,7 +9,7 @@ const SESSION = Symbol('SESSION')
 
 declare module 'koa' {
   interface DefaultContext {
-    get session(): SessionData
+    get session(): SessionData | null
     set session(data: SessionData | boolean)
 
     // FIXME: https://github.com/DefinitelyTyped/DefinitelyTyped/pull/65976

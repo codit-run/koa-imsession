@@ -10,7 +10,7 @@ interface SessionIdResolverOptions {
 export class SessionIdResolver {
   options: SessionIdResolverOptions
 
-  constructor({ name, cookie }: { name: string, cookie: SessionOptions['cookie'] }) {
+  constructor({ name, cookie }: { name: string, cookie?: SessionOptions['cookie'] }) {
     this.options = {
       name,
       cookie: {

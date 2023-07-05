@@ -3,7 +3,7 @@ import assert from 'node:assert'
 import { SessionIdResolver } from './sessionid-resolver.js'
 import { createContext } from './test-utils.js'
 
-const sessionIdResolver = new SessionIdResolver({ name: 'connect.sid', cookie: {} })
+const sessionIdResolver = new SessionIdResolver({ name: 'connect.sid' })
 
 test('generates session ID', async (t) => {
   const ctx = createContext()

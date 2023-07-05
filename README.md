@@ -29,9 +29,9 @@ const app = new Koa()
 // All options are optional.
 const options = {
   name: 'connect.sid', // the name of the session ID cookie
-  // idResolver, // how to get/set/generate session ID
-  // store, // your custom store instead of the default `MemoryStore` instance
-  cookie: { // cookie options, see https://github.com/pillarjs/cookies
+  // idResolver,       // session ID resolver which gets/sets/generates the session ID
+  // store,            // set custom session store instead of the default `MemoryStore` instance
+  cookie: {            // cookie options, see https://github.com/pillarjs/cookies
     maxAge: 86400_000, // default value is 1 day
   },
 }
@@ -39,7 +39,8 @@ const options = {
 app.use(imsession(options))
 
 app.use(ctx => {
-  ctx.session = { views: (ctx.session?.views ?? 0) + 1 } // immutable object
+  const views = ctx.session?.views ?? 0
+  ctx.session = { views: views + 1 } // immutable object
   ctx.body = 'views: ' + ctx.session.views
 })
 
