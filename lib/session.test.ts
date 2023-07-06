@@ -5,6 +5,7 @@ import {
   app,
   createContext,
   getCookie,
+  mockStoreTTL,
   sessionAgent,
   store,
 } from './test-utils.js'
@@ -125,4 +126,27 @@ test('regenerates no new sessionid', async (t) => {
     .expect(200)
     .expect('no session')
   assert.strictEqual(res.get('Set-Cookie'), undefined, 'no cookie set')
+})
+
+test('renews sessionid', async (t) => {
+  const app = mockStoreTTL(t.mock, 2000, 100) // `100` is much less than `2000/3`
+  await request(app.callback())
+    .get('/')
+    .set('Cookie', [`connect.sid=mysessionid`])
+    .expect(200)
+    // A new session ID is generated and expires is reset.
+    .expect('Set-Cookie', new RegExp(`^connect.sid=\\w{32}; path=/; expires=${new Date(Date.now() + 2000).toUTCString()};`))
+    .expect({ message: 'hello' })
+})
+
+test('sessionid is not renewed', async (t) => {
+  const app = mockStoreTTL(t.mock, 2000, 1800) // `1800` is not less than `2000/3`
+  const res = await request(app.callback())
+    .get('/')
+    .set('Cookie', [`connect.sid=mysessionid`])
+    .expect(200)
+    .expect({ message: 'hello' })
+  assert.strictEqual(res.get('Set-Cookie'), undefined, 'no cookie set')
+
+  // console.log(`res.get('Set-Cookie')=`, res.get('Set-Cookie')[0])
 })

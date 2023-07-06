@@ -1,16 +1,16 @@
 import { randomBytes } from 'node:crypto'
 import type Koa from 'koa'
-import type { SessionOptions } from './types.js'
+import type Cookies from 'cookies'
 
 interface SessionIdResolverOptions {
   name: string
-  cookie: SessionOptions['cookie'] & { signed: boolean }
+  cookie: Cookies.SetOption & { signed: boolean }
 }
 
 export class SessionIdResolver {
   options: SessionIdResolverOptions
 
-  constructor({ name, cookie }: { name: string, cookie?: SessionOptions['cookie'] }) {
+  constructor({ name, cookie }: { name: string, cookie?: Cookies.SetOption }) {
     this.options = {
       name,
       cookie: {

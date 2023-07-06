@@ -2,7 +2,7 @@
   "name": "koa-imsession",
   "description": "Pretty simple and performance koa session middleware using immutability",
   "repository": "xuxucode/koa-imsession",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -19,7 +19,7 @@
   ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && cp lib/*.d.ts dist/",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "tsc -p tsconfig.test.json; node --test dist/",
     "prepublishOnly": "npm run build"
   },

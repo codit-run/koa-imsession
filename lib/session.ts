@@ -1,8 +1,9 @@
 import Debug from 'debug'
 import type Koa from 'koa'
+
 import { MemoryStore } from './memory-store.js'
-import type { SessionOptions, SessionData } from './types.js'
 import { SessionIdResolver } from './sessionid-resolver.js'
+import { TTL_MS, type SessionData, type SessionOptions } from './types.js'
 
 const debug = Debug('koa-imsession')
 const SESSION = Symbol('SESSION')
@@ -39,6 +40,11 @@ export function imsession(app: Koa, opts: SessionOptions = {}): Koa.Middleware {
     const sessionData = sessionId ? await options.store.get(sessionId) : null
     session.id = sessionId
     session.data = sessionData
+
+    // Renew session automatically if `TTL_MS` magic symbol property is defined.
+    const ttlMs = sessionData?.[TTL_MS]
+    if (ttlMs && ttlMs > 0 && ttlMs < options.cookie.maxAge / 3)
+      session.id = options.idResolver.generate(ctx)
 
     try {
       await next()
@@ -132,10 +138,8 @@ async function commit(ctx: Koa.Context, options: ParsedSessionOptions) {
   const session: Session = ctx[SESSION]
 
   if (!session.data) {
-    if (session.id) {
-      await options.store.destroy(session.id)
-      options.idResolver.set(ctx, null)
-    }
+    if (session.id) await options.store.destroy(session.id)
+    options.idResolver.set(ctx, null)
     debug('[commit] remove session: %s', session.id)
     return
   }
@@ -144,8 +148,8 @@ async function commit(ctx: Koa.Context, options: ParsedSessionOptions) {
 
   const sessionId = session.id || options.idResolver.generate(ctx)
   const sessionData = session.data
-  const maxAge = options.cookie.maxAge + 10_000 // 10s longer than cookie
+  const ttlMs = options.cookie.maxAge + 10_000 // store entry TTL is reset and 10s longer than cookie
 
-  await options.store.set(sessionId, sessionData, maxAge)
+  await options.store.set(sessionId, sessionData, ttlMs)
   options.idResolver.set(ctx, sessionId)
 }

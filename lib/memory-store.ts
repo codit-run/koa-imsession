@@ -26,7 +26,7 @@ export class MemoryStore<T extends SessionData> implements SessionStore<T> {
   /**
    * Commits the given session associated with the given sessionId to the store.
    */
-  async set(sessionId: string, sessionData: T, maxAge: number): Promise<void> {
+  async set(sessionId: string, sessionData: T, ttlMs: number): Promise<void> {
     if (!sessionData || typeof sessionData !== 'object')
       throw new Error('session data must be an object')
 
@@ -34,7 +34,7 @@ export class MemoryStore<T extends SessionData> implements SessionStore<T> {
       setImmediate(() => {
         this.sessions[sessionId] = {
           data: sessionData,
-          expires: Date.now() + maxAge
+          expires: Date.now() + ttlMs
         }
         resolve()
       })

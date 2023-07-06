@@ -1,9 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { mock } from 'node:test'
 import Koa from 'koa'
 import setCookie from 'set-cookie-parser'
 import request from 'supertest'
 import { imsession } from './session.js'
 import { MemoryStore } from './memory-store.js'
+import { TTL_MS } from './types.js'
 
 export const store = new MemoryStore()
 export const app = new Koa()
@@ -46,6 +48,24 @@ app.use(async function (ctx) {
     }
   }
 })
+
+export function mockStoreTTL(mocks: typeof mock, cookieMaxAge: number, storeTTL: number) {
+  const app = new Koa()
+  const store = new MemoryStore()
+  mocks.method(store, 'get').mock.mockImplementation(() => {
+    return {
+      message: 'hello',
+      [TTL_MS]: storeTTL,
+    }
+  })
+  app.use(imsession(app, { store, cookie: { maxAge: cookieMaxAge } }))
+  app.use(async ctx => {
+    ctx.body = ctx.session || 'no session'
+    return
+  })
+
+  return app
+}
 
 export function createContext(reqOpts?: Partial<IncomingMessage>, resOpts?: Partial<ServerResponse>): Koa.Context {
   const req = {

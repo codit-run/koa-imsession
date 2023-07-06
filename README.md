@@ -17,6 +17,37 @@ Pretty simple and performance session middleware for Koa using immutability.
 $ npm install koa-imsession
 ```
 
+## API
+
+### Set session (e.g. login)
+
+```js
+ctx.session = { id: 1, status: 'pending' }
+```
+
+### Update session
+
+**Session data is immutable.** Set the session to a new object.
+
+```js
+const oldSession = ctx.session
+ctx.session = { ...oldSession, status: 'activated' }
+```
+
+### Destroy session (e.g. logout)
+
+```js
+ctx.session = false // by default a `Set-Cookie` header will be sent to remove the cookie
+```
+
+### Manually regenerate session ID (e.g. renew session)
+
+```js
+ctx.session = true // a new session ID is generated and existing session data is preserved
+```
+
+For auto-renewal see [Redis session store and session auto-renewal](#redis-session-store-and-session-auto-renewal).
+
 ## Examples
 
 ### View counter
@@ -24,6 +55,7 @@ $ npm install koa-imsession
 ```js
 import { imsession } from 'koa-imsession'
 import Koa from 'koa'
+
 const app = new Koa()
 
 // All options are optional.
@@ -47,29 +79,46 @@ app.use(ctx => {
 app.listen(3000)
 ```
 
-### Set session (e.g. login)
+### Redis session store and session auto-renewal
+
+The builtin `MemoryStore` is used by default for development and testing purpose only.
 
 ```js
-ctx.session = { id: 1, status: 'pending_approval' }
-```
+import type { SessionStore as ISessionStore, SessionData } from 'koa-imsession'
+import { TTL_MS } from 'koa-imsession'
+import redis from './redis.js' // ioredis
 
-### Update session
+export class SessionStore<T extends SessionData> implements ISessionStore<T> {
+  async get(sessionId: string): Promise<T | null> {
+    const tx = redis.multi()
+    tx.get(sessionId) // data
+    tx.ttl(sessionId) // ttl in seconds
+    const results = await tx.exec()
+    if (!results) return null
 
-**Session data is immutable.** Set the session to a new object.
+    const [[, data], [, ttl]] = results
+    if (!data) return null
 
-```js
-const oldSession = ctx.session
-ctx.session = { ...oldSession, status: 'activated' }
-```
+    const sessionData = JSON.parse(data as string)
+    if (ttl as number > 0) {
+      // AUTO RENEWAL happens here!!!
 
-### Destroy session (e.g. logout)
+      // Set the `TTL_MS` symbol property, koa-imsession will check whether
+      // it is less than cookie's `maxAge/3`, if true the session will be
+      // renewed automatically.
+      sessionData[TTL_MS] = (ttl as number) * 1000
+    }
 
-```js
-ctx.session = false // by default a `Set-Cookie` header will be sent to remove the cookie
-```
+    return sessionData
+  }
 
-### Regenerate session ID (e.g. renew session)
+  async set(sessionId: string, sessionData: T, ttlMs: number): Promise<void> {
+    const data = JSON.stringify(sessionData)
+    await redis.set(sessionId, data, 'PX', ttlMs)
+  }
 
-```js
-ctx.session = true // a new session ID is generated and existing session data is preserved
+  async destroy(sessionId: string): Promise<void> {
+    await redis.del(sessionId)
+  }
+}
 ```
