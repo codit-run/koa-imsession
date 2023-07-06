@@ -37,16 +37,16 @@ ctx.session = { ...oldSession, status: 'activated' }
 ### Destroy session (e.g. logout)
 
 ```js
-ctx.session = false // by default a `Set-Cookie` header will be sent to remove the cookie
+ctx.session = false // the `Set-Cookie` header will be sent to remove the cookie
 ```
 
 ### Manually regenerate session ID (e.g. renew session)
 
 ```js
-ctx.session = true // a new session ID is generated and existing session data is preserved
+ctx.session = true // a new session ID is generated and the existing session data is preserved
 ```
 
-For auto-renewal see [Redis session store and session auto-renewal](#redis-session-store-and-session-auto-renewal).
+For session auto-renewal see [Redis session store and session auto-renewal](#redis-session-store-and-session-auto-renewal).
 
 ## Examples
 
@@ -60,7 +60,7 @@ const app = new Koa()
 
 // All options are optional.
 const options = {
-  name: 'connect.sid', // the name of the session ID cookie
+  name: 'connsid',     // the name of the session ID cookie
   // idResolver,       // session ID resolver which gets/sets/generates the session ID
   // store,            // set custom session store instead of the default `MemoryStore` instance
   cookie: {            // cookie options, see https://github.com/pillarjs/cookies
@@ -81,7 +81,7 @@ app.listen(3000)
 
 ### Redis session store and session auto-renewal
 
-The builtin `MemoryStore` is used by default for development and testing purpose only.
+The builtin `MemoryStore` is used by default for development and testing purpose only. A custom session store must be set for production environment.
 
 ```js
 import type { SessionStore as ISessionStore, SessionData } from 'koa-imsession'
@@ -120,5 +120,41 @@ export class SessionStore<T extends SessionData> implements ISessionStore<T> {
   async destroy(sessionId: string): Promise<void> {
     await redis.del(sessionId)
   }
+}
+```
+
+### Custom SessionIdResolver
+
+You may want to get the `Bearer` access token from the `Authorization` header.
+
+```js
+import type Cookies from 'cookies'
+import type Koa from 'koa'
+import { SessionIdResolver as CookieSessionIdResolver } from 'koa-imsession'
+
+export class SessionIdResolver extends CookieSessionIdResolver {
+  constructor({ name, cookie }: { name: string; cookie?: Cookies.SetOption }) {
+    super({ name, cookie })
+  }
+
+  // Overrides `get` method to get the access token from header first.
+  get(ctx: Koa.Context): string | null {
+    return getAccessTokenFromHeader(ctx) ?? super.get(ctx)
+  }
+}
+
+/**
+ * Gets access token from header.
+ */
+function getAccessTokenFromHeader(ctx: Koa.Context): string | null {
+  const authorization = ctx.get('Authorization')
+  if (!authorization) return null
+
+  // Syntax: Bearer 1*SP b64token
+  const [scheme, accessToken] = authorization.split(' ', 2)
+  if (scheme.toLowerCase() === 'bearer')
+    return accessToken || null
+
+  return null
 }
 ```

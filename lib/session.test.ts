@@ -4,7 +4,7 @@ import request from 'supertest'
 import {
   app,
   createContext,
-  getCookie,
+  parseCookie,
   mockStoreTTL,
   sessionAgent,
   store,
@@ -49,48 +49,48 @@ test('sets session', async (t) => {
   const res = await request(app.callback())
     .post('/set-session')
     .expect(200)
-    .expect('Set-Cookie', /^connect.sid=\w{32};/)
+    .expect('Set-Cookie', /^connsid=\w{32};/)
     .expect({ message: 'hello' })
 
-  const cookie = getCookie(res)
-  assert.deepStrictEqual(await store.get(cookie!.value), { message: 'hello' }, 'session saved')
+  const cookie = parseCookie(res)
+  assert.deepStrictEqual(await store.get(cookie!.connsid), { message: 'hello' }, 'session saved')
 })
 
 test('sets new session when data is set', async (t) => {
   const { agent, res } = await sessionAgent()
-  const cookie = getCookie(res)
+  const cookie = parseCookie(res)
 
   const res2 = await agent
     .get('/set-session?hello=world')
     .expect(200)
-    .expect('Set-Cookie', /^connect.sid=\w{32};/)
+    .expect('Set-Cookie', /^connsid=\w{32};/)
     .expect({ message: 'helloworld' })
-  const cookie2 = getCookie(res2)
-  assert.strictEqual(cookie2!.value, cookie!.value, 'session ID not changed')
-  assert.deepStrictEqual(await store.get(cookie!.value), { message: 'helloworld' }, 'session updated')
+  const cookie2 = parseCookie(res2)
+  assert.strictEqual(cookie2!.connsid, cookie!.connsid, 'session ID not changed')
+  assert.deepStrictEqual(await store.get(cookie!.connsid), { message: 'helloworld' }, 'session updated')
 
   const res3 = await agent
     .get('/set-session?hello=world')
     .expect(200)
-    .expect('Set-Cookie', /^connect.sid=\w{32};/)
+    .expect('Set-Cookie', /^connsid=\w{32};/)
     .expect({ message: 'helloworld' })
-  const cookie3 = getCookie(res3)
-  assert.strictEqual(cookie3!.value, cookie2!.value, 'session ID not changed')
-  assert.deepStrictEqual(await store.get(cookie!.value), { message: 'helloworld' }, 'session updated with same data')
+  const cookie3 = parseCookie(res3)
+  assert.strictEqual(cookie3!.connsid, cookie2!.connsid, 'session ID not changed')
+  assert.deepStrictEqual(await store.get(cookie!.connsid), { message: 'helloworld' }, 'session updated with same data')
 })
 
 test('unsets session', async (t) => {
   const { agent, res } = await sessionAgent()
-  const cookie = getCookie(res)
+  const cookie = parseCookie(res)
 
   const res2 = await agent
     .get('/unset-session?action=null')
     .expect(200)
-    .expect('Set-Cookie', /^connect.sid=;/)
+    .expect('Set-Cookie', /^connsid=;/)
     .expect('no session')
-  const cookie2 = getCookie(res2)
+  const cookie2 = parseCookie(res2)
   assert.strictEqual(cookie2!.expires!.toUTCString(), 'Thu, 01 Jan 1970 00:00:00 GMT', 'cookie removal')
-  assert.strictEqual(await store.get(cookie!.value), null, 'session destroyed')
+  assert.strictEqual(await store.get(cookie!.connsid), null, 'session destroyed')
 
   const res3 = await agent
     .get('/unset-session?action=undefined')
@@ -107,17 +107,17 @@ test('unsets session', async (t) => {
 
 test('regenerates sessionid', async (t) => {
   const { agent, res } = await sessionAgent()
-  const cookie = getCookie(res)
+  const cookie = parseCookie(res)
 
   const res2 = await agent
     .get('/regenerate-sessionid')
     .expect(200)
-    .expect('Set-Cookie', /^connect.sid=\w{32};/)
+    .expect('Set-Cookie', /^connsid=\w{32};/)
     .expect({ message: 'hello' })
-  const cookie2 = getCookie(res2)
-  assert.notStrictEqual(cookie2!.value, cookie!.value, 'session ID changed')
-  assert.strictEqual(await store.get(cookie!.value), null, 'old session destroyed')
-  assert.deepStrictEqual(await store.get(cookie2!.value), { message: 'hello' }, 'new session saved')
+  const cookie2 = parseCookie(res2)
+  assert.notStrictEqual(cookie2!.connsid, cookie!.connsid, 'session ID changed')
+  assert.strictEqual(await store.get(cookie!.connsid), null, 'old session destroyed')
+  assert.deepStrictEqual(await store.get(cookie2!.connsid), { message: 'hello' }, 'new session saved')
 })
 
 test('regenerates no new sessionid', async (t) => {
@@ -132,10 +132,10 @@ test('renews sessionid', async (t) => {
   const app = mockStoreTTL(t.mock, 2000, 100) // `100` is much less than `2000/3`
   await request(app.callback())
     .get('/')
-    .set('Cookie', [`connect.sid=mysessionid`])
+    .set('Cookie', [`connsid=mysessionid`])
     .expect(200)
     // A new session ID is generated and expires is reset.
-    .expect('Set-Cookie', new RegExp(`^connect.sid=\\w{32}; path=/; expires=${new Date(Date.now() + 2000).toUTCString()};`))
+    .expect('Set-Cookie', new RegExp(`^connsid=\\w{32}; path=/; expires=${new Date(Date.now() + 2000).toUTCString()};`))
     .expect({ message: 'hello' })
 })
 
@@ -143,10 +143,8 @@ test('sessionid is not renewed', async (t) => {
   const app = mockStoreTTL(t.mock, 2000, 1800) // `1800` is not less than `2000/3`
   const res = await request(app.callback())
     .get('/')
-    .set('Cookie', [`connect.sid=mysessionid`])
+    .set('Cookie', [`connsid=mysessionid`])
     .expect(200)
     .expect({ message: 'hello' })
   assert.strictEqual(res.get('Set-Cookie'), undefined, 'no cookie set')
-
-  // console.log(`res.get('Set-Cookie')=`, res.get('Set-Cookie')[0])
 })

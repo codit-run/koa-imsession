@@ -3,7 +3,7 @@ import assert from 'node:assert'
 import { SessionIdResolver } from './sessionid-resolver.js'
 import { createContext } from './test-utils.js'
 
-const sessionIdResolver = new SessionIdResolver({ name: 'connect.sid' })
+const sessionIdResolver = new SessionIdResolver({ name: 'connsid' })
 
 test('generates session ID', async (t) => {
   const ctx = createContext()
@@ -13,7 +13,7 @@ test('generates session ID', async (t) => {
 test('gets session ID', async (t) => {
   const ctx = createContext(
     {
-      headers: { 'cookie': 'connect.sid=c650059107b876d453cb25a6d2dd0e36' },
+      headers: { 'cookie': 'connsid=c650059107b876d453cb25a6d2dd0e36' },
     },
   )
   assert.strictEqual(sessionIdResolver.get(ctx), 'c650059107b876d453cb25a6d2dd0e36')
@@ -22,5 +22,5 @@ test('gets session ID', async (t) => {
 test('sets session ID', async (t) => {
   const ctx = createContext()
   sessionIdResolver.set(ctx, 'c650059107b876d453cb25a6d2dd0e36')
-  assert.match((ctx.res.getHeader('Set-Cookie') as string[])[0], /^connect.sid=c650059107b876d453cb25a6d2dd0e36;/)
+  assert.match((ctx.res.getHeader('Set-Cookie') as string[])[0], /^connsid=c650059107b876d453cb25a6d2dd0e36;/)
 })

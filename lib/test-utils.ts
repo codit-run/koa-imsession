@@ -1,8 +1,8 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
 import { mock } from 'node:test'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import Koa from 'koa'
-import setCookie from 'set-cookie-parser'
 import request from 'supertest'
+
 import { imsession } from './session.js'
 import { MemoryStore } from './memory-store.js'
 import { TTL_MS } from './types.js'
@@ -98,13 +98,47 @@ export async function sessionAgent() {
   const res = await agent
     .post('/set-session')
     .expect(200)
-    .expect('Set-Cookie', /^connect.sid=\w{32};/)
+    .expect('Set-Cookie', /^connsid=\w{32};/)
     .expect({ message: 'hello' })
 
   return { agent, res }
 }
 
-export function getCookie(res: request.Response) {
-  const cookies = setCookie.parse(res.get('Set-Cookie'))
-  return cookies.find(cookie => cookie.name === 'connect.sid')
+interface Cookie {
+  connsid: string
+  path?: string
+  expires?: Date
+  domain?: string
+  secure?: boolean
+  httpOnly?: boolean
+  sameSite?: string
+}
+
+/**
+ * Parses response cookie.
+ *
+ * ```js
+ * const cookieString = 'connsid=8bfee50ccbcb8295dc2f5ae545cbc6be; path=/; expires=Thu, 06 Jul 2023 10:18:44 GMT; httponly'
+ * // => {
+ * {
+ *   connsid: '8bfee50ccbcb8295dc2f5ae545cbc6be',
+ *   path: '/',
+ *   expires: '2023-07-06T10:18:44.000Z',
+ *   httponly: true,
+ * }
+ * ```
+ */
+export function parseCookie(res: request.Response): Cookie | null {
+  const cookieString = res.get('Set-Cookie').find(str => str.includes('connsid='))
+  if (!cookieString) return null
+
+  const cookie = {} as Cookie
+  for (const part of cookieString.split('; ')) {
+    const [name, value] = part.split('=')
+    // @ts-ignore: custom property assign
+    cookie[name] = name === 'expires'
+      ? new Date(value)
+      : value || true
+  }
+  return cookie
 }

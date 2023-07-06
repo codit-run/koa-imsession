@@ -61,7 +61,7 @@ export function imsession(app: Koa, opts: SessionOptions = {}): Koa.Middleware {
 
 function parseOptions(opts: SessionOptions): ParsedSessionOptions {
   const {
-    name = 'connect.sid',
+    name = 'connsid',
     store = new MemoryStore(),
   } = opts
 

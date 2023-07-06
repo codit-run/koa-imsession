@@ -4,20 +4,20 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import test from 'node:test'
 import { MemoryStore } from './memory-store.js'
 
-async function fill(store: MemoryStore<object>, maxAge: number) {
+async function createEntry(store: MemoryStore<object>, ttlMs: number) {
   const id = randomBytes(16).toString('hex')
   const data = { id: 1 }
-  await store.set(id, data, maxAge)
+  await store.set(id, data, ttlMs)
   return { id, data }
 }
 
 test('sets object', async (t) => {
   const store = new MemoryStore()
   const sessionId = randomBytes(16).toString('hex')
-  const sessoinData = { id: 1 }
+  const sessionData = { id: 1 }
 
-  assert.strictEqual(await store.set(sessionId, { ...sessoinData }, 10), undefined)
-  assert.deepStrictEqual(await store.get(sessionId), sessoinData)
+  assert.strictEqual(await store.set(sessionId, { ...sessionData }, 10), undefined)
+  assert.deepStrictEqual(await store.get(sessionId), sessionData)
 })
 
 test('sets primitive', async (t) => {
@@ -37,14 +37,14 @@ test('gets nonexistent', async (t) => {
 
 test('gets existing', async (t) => {
   const store = new MemoryStore()
-  const session = await fill(store, 10)
+  const session = await createEntry(store, 10)
 
   assert.deepStrictEqual(await store.get(session.id), session.data)
 })
 
 test('gets expired', async (t) => {
   const store = new MemoryStore()
-  const session = await fill(store, 4)
+  const session = await createEntry(store, 4)
 
   assert.deepStrictEqual(await store.get(session.id), session.data)
   await sleep(10)
@@ -61,7 +61,7 @@ test('destroys nonexistent', async (t) => {
 
 test('destroys existing', async (t) => {
   const store = new MemoryStore()
-  const session = await fill(store, 10)
+  const session = await createEntry(store, 10)
 
   assert.strictEqual(await store.destroy(session.id), undefined)
   assert.strictEqual(await store.get(session.id), null)

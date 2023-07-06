@@ -5,7 +5,7 @@ export interface SessionOptions {
   /**
    * The name of the session which is used as cookie name.
    *
-   * The default value is `connect.sid`.
+   * The default value is `connsid`.
    */
   name?: string
 
