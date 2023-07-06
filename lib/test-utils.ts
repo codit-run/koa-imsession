@@ -8,8 +8,7 @@ import { MemoryStore } from './memory-store.js'
 export const store = new MemoryStore()
 export const app = new Koa()
 
-const session = imsession({ store })
-app.use(session)
+app.use(imsession(app, { store }))
 app.use(async function (ctx) {
   const pathname = new URL('http://localhost' + ctx.url).pathname
   switch (pathname) {
@@ -69,13 +68,6 @@ export function createContext(reqOpts?: Partial<IncomingMessage>, resOpts?: Part
   Object.defineProperty(ctx.request, 'secure', { get() { return false } })
 
   return ctx
-}
-
-/**
- * Runs session middleware on the given context.
- */
-export function runSession(ctx: Koa.Context) {
-  session(ctx, async () => { /* noop */ })
 }
 
 /**

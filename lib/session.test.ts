@@ -5,7 +5,6 @@ import {
   app,
   createContext,
   getCookie,
-  runSession,
   sessionAgent,
   store,
 } from './test-utils.js'
@@ -16,13 +15,11 @@ test.beforeEach(() => {
 
 test('gets context.session', (t) => {
   const ctx = createContext()
-  runSession(ctx)
   assert.strictEqual(ctx.session, null)
 })
 
 test('sets context.session', (t) => {
   const ctx = createContext()
-  runSession(ctx)
   ctx.session = { id: 1 }
   assert.deepStrictEqual(ctx.session, { id: 1 })
 })

@@ -6,6 +6,7 @@ import { SessionIdResolver } from './sessionid-resolver.js'
 
 const debug = Debug('koa-imsession')
 const SESSION = Symbol('SESSION')
+const _SESSION = Symbol('_SESSION')
 
 declare module 'koa' {
   interface DefaultContext {
@@ -26,19 +27,18 @@ interface ParsedSessionOptions extends Required<SessionOptions> {
   cookie: { maxAge: number }
 }
 
-export function imsession(opts: SessionOptions = {}): Koa.Middleware {
+export function imsession(app: Koa, opts: SessionOptions = {}): Koa.Middleware {
   const options = parseOptions(opts)
   debug('session options %O', options)
 
+  extendContext(app.context, options)
+
   return async function middleware(ctx, next) {
-    Object.defineProperty(ctx, SESSION, { value: Object.create(null) })
     const session: Session = ctx[SESSION]
     const sessionId = options.idResolver.get(ctx)
     const sessionData = sessionId ? await options.store.get(sessionId) : null
     session.id = sessionId
     session.data = sessionData
-
-    extendContextSession(ctx, options)
 
     try {
       await next()
@@ -59,14 +59,14 @@ function parseOptions(opts: SessionOptions): ParsedSessionOptions {
     store = new MemoryStore(),
   } = opts
 
-  if (store instanceof MemoryStore)
-    console.warn('You are using the memory store for sessions. Must not use it on production environment.')
+  if (store instanceof MemoryStore && process.env.NODE_ENV !== 'test')
+    console.warn('[koa-imsession] You are using the memory store for sessions. Must not use it on production environment.')
 
   const cookie = { ...opts.cookie } as typeof opts.cookie & { maxAge: number }
   if (!cookie.maxAge)
     cookie.maxAge = cookie.expires
       ? cookie.expires.getTime() - Date.now()
-      : 86400_000 // defaults to 1 day
+      : 86400_000 // default value is 1 day
 
   const idResolver = opts.idResolver ?? new SessionIdResolver({ name, cookie })
 
@@ -81,7 +81,26 @@ function parseOptions(opts: SessionOptions): ParsedSessionOptions {
 /**
  * Extends context instance, adds `session` property.
  */
-function extendContextSession(ctx: Koa.Context, options: ParsedSessionOptions): void {
+function extendContext(ctx: Koa['context'], options: ParsedSessionOptions): void {
+  function getSession(this: Koa.Context): Session {
+    if (this[_SESSION]) return this[_SESSION]
+
+    return this[_SESSION] = Object.create(null, {
+      id: {
+        configurable: false,
+        enumerable: true,
+        value: null,
+        writable: true,
+      },
+      data: {
+        configurable: false,
+        enumerable: true,
+        value: null,
+        writable: true,
+      },
+    } satisfies Record<keyof Session, PropertyDescriptor>)
+  }
+
   function getSessionData(this: Koa.Context): SessionData | null {
     return this[SESSION].data
   }
@@ -95,6 +114,10 @@ function extendContextSession(ctx: Koa.Context, options: ParsedSessionOptions): 
       session.data = data || null
     }
   }
+
+  Object.defineProperty(ctx, SESSION, {
+    get: getSession,
+  })
 
   Object.defineProperty(ctx, 'session', {
     get: getSessionData,
