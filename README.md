@@ -1,7 +1,7 @@
 # koa-imsession
 
 [![NPM version][npm-image]][npm-url]
-[![Node.js CI](https://github.com/xuxucode/koa-imsession/actions/workflows/nodejs.yml/badge.svg)](https://github.com/xuxucode/koa-imsession/actions/workflows/nodejs.yml)
+[![Node.js CI](https://github.com/codit-run/koa-imsession/actions/workflows/nodejs.yml/badge.svg)](https://github.com/codit-run/koa-imsession/actions/workflows/nodejs.yml)
 [![npm download][download-image]][download-url]
 
 [npm-image]: https://img.shields.io/npm/v/koa-imsession.svg?style=flat-square

@@ -6,6 +6,7 @@ import request from 'supertest'
 import { imsession } from './session.js'
 import { MemoryStore } from './memory-store.js'
 import { TTL_MS } from './types.js'
+import { vi } from 'vitest'
 
 export const store = new MemoryStore()
 export const app = new Koa()
@@ -49,14 +50,12 @@ app.use(async function (ctx) {
   }
 })
 
-export function mockStoreTTL(mocks: typeof mock, cookieMaxAge: number, storeTTL: number) {
+export function mockStoreTTL(cookieMaxAge: number, storeTTL: number) {
   const app = new Koa()
   const store = new MemoryStore()
-  mocks.method(store, 'get').mock.mockImplementation(() => {
-    return {
-      message: 'hello',
-      [TTL_MS]: storeTTL,
-    }
+  const spy = vi.spyOn(store, 'get').mockResolvedValue({
+    message: 'hello',
+    [TTL_MS]: storeTTL,
   })
   app.use(imsession(app, { store, cookie: { maxAge: cookieMaxAge } }))
   app.use(async ctx => {
@@ -64,7 +63,7 @@ export function mockStoreTTL(mocks: typeof mock, cookieMaxAge: number, storeTTL:
     return
   })
 
-  return app
+  return { app, spy }
 }
 
 export function createContext(reqOpts?: Partial<IncomingMessage>, resOpts?: Partial<ServerResponse>): Koa.Context {
@@ -91,7 +90,7 @@ export function createContext(reqOpts?: Partial<IncomingMessage>, resOpts?: Part
 }
 
 /**
- * Returns an request agent with session cookie.
+ * Returns a request agent with session cookie.
  */
 export async function sessionAgent() {
   const agent = request.agent(app.callback())
