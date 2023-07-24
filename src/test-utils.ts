@@ -1,18 +1,17 @@
-import { mock } from 'node:test'
+import { vi } from 'vitest'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import Koa from 'koa'
 import request from 'supertest'
 
-import { imsession } from './session.js'
 import { MemoryStore } from './memory-store.js'
+import { imsession } from './session.js'
 import { TTL_MS } from './types.js'
-import { vi } from 'vitest'
 
 export const store = new MemoryStore()
 export const app = new Koa()
 
 app.use(imsession(app, { store }))
-app.use(async function (ctx) {
+app.use(async ctx => {
   const pathname = new URL('http://localhost' + ctx.url).pathname
   switch (pathname) {
     case '/get-session': {
@@ -40,7 +39,7 @@ app.use(async function (ctx) {
           break
       }
       ctx.body = ctx.session || 'no session'
-      break
+      return
     }
     case '/regenerate-sessionid': {
       ctx.session = true

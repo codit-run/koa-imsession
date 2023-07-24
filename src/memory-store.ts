@@ -12,7 +12,7 @@ export class MemoryStore<T extends SessionData> implements SessionStore<T> {
   sessions: Record<string, Session<T>> = Object.create(null)
 
   /**
-   * Fetches session by the given session ID.
+   * Gets session by the given session ID.
    */
   async get(sessionId: string): Promise<T | null> {
     return new Promise<T | null>((resolve, _) => {
@@ -69,6 +69,10 @@ export class MemoryStore<T extends SessionData> implements SessionStore<T> {
     return session.data
   }
 
+  /**
+   * Clears all the sessions. Internal use.
+   * @private
+   */
   _clear() {
     this.sessions = Object.create(null)
   }

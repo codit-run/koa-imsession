@@ -125,13 +125,13 @@ test('regenerates no new sessionid', async () => {
 })
 
 test('renews sessionid', async () => {
-  const { app, spy } = mockStoreTTL(2000, 100) // `100` is much less than `2000/3`
+  const { app, spy } = mockStoreTTL(2000, 100) // '100' is much less than '2000/3'
 
   await request(app.callback())
     .get('/')
     .set('Cookie', [`connsid=mysessionid`])
     .expect(200)
-    // A new session ID is generated and expires is reset.
+    // A new session ID is generated and `expires` is reset.
     .expect('Set-Cookie', new RegExp(`^connsid=\\w{32}; path=/; expires=${new Date(Date.now() + 2000).toUTCString()};`))
     .expect({ message: 'hello' })
 
@@ -139,7 +139,7 @@ test('renews sessionid', async () => {
 })
 
 test('sessionid is not renewed', async () => {
-  const { app, spy } = mockStoreTTL(2000, 1800) // `1800` is not less than `2000/3`
+  const { app, spy } = mockStoreTTL(2000, 1800) // '1800' is not less than '2000/3'
 
   const res = await request(app.callback())
     .get('/')

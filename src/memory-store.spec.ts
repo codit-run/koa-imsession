@@ -4,15 +4,19 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { MemoryStore } from './memory-store.js'
 
 async function createEntry(store: MemoryStore<object>, ttlMs: number) {
-  const id = randomBytes(16).toString('hex')
+  const id = randomSessionId()
   const data = { id: 1 }
   await store.set(id, data, ttlMs)
   return { id, data }
 }
 
+function randomSessionId() {
+  return randomBytes(16).toString('base64url')
+}
+
 test('sets object', async () => {
   const store = new MemoryStore()
-  const sessionId = randomBytes(16).toString('hex')
+  const sessionId = randomSessionId()
   const sessionData = { id: 1 }
 
   expect(await store.set(sessionId, { ...sessionData }, 10)).toBeUndefined()
@@ -22,12 +26,9 @@ test('sets object', async () => {
 const primitiveData = [null, undefined, 100, true]
 test.each(primitiveData)('sets primitive', async (primitive) => {
   const store = new MemoryStore()
-  const sessionId = randomBytes(16).toString('hex')
+  const sessionId = randomSessionId()
 
-  // const sessionDataArr = [null, undefined, 100, true]
-  // for (const sessionData of sessionDataArr) {
   await expect(store.set(sessionId, primitive as any, 10)).rejects.toThrow('session data must be an object')
-  // }
 })
 
 test('gets nonexistent', async () => {
@@ -53,7 +54,7 @@ test('gets expired', async () => {
 
 test('destroys nonexistent', async () => {
   const store = new MemoryStore()
-  const sessionId = randomBytes(16).toString('hex')
+  const sessionId = randomSessionId()
 
   expect(await store.destroy(sessionId)).toBeUndefined()
   expect(await store.get(sessionId)).toBeNull()

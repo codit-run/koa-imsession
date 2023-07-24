@@ -44,7 +44,7 @@ export class SessionIdResolver {
   /**
    * Generates a new session ID.
    *
-   * It is called only on necessary.
+   * It is called only when necessary.
    */
   generate(ctx: Koa.Context): string {
     return randomBytes(16).toString('hex')

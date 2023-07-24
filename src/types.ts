@@ -10,7 +10,8 @@ export interface SessionOptions {
   name?: string
 
   /**
-   * Session ID resolver, can get/set/gen session ID.
+   * Session ID resolver, can get/set/generate session ID. You could create a
+   * child class to provide custom behavior.
    *
    * The default value is a `SessionIdResolver` instance.
    */
@@ -18,7 +19,7 @@ export interface SessionOptions {
 
   /**
    * Session store. A `MemoryStore` is used by default for development purpose.
-   * You should provide a stote (Redis, MongoDB) instead on production.
+   * You must provide a stote (Redis, MongoDB) instead on production.
    *
    * The default value is a `MemoryStore` instance.
    */
@@ -41,6 +42,6 @@ export interface SessionData {
 
 export interface SessionStore<T extends SessionData = SessionData> {
   get(sessionId: string): Promise<T | null>
-  set(sessionId: string, sessionData: T, ttl: number): Promise<void>
+  set(sessionId: string, sessionData: T, ttlMs: number): Promise<void>
   destroy(sessionId: string): Promise<void>
 }

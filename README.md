@@ -9,11 +9,11 @@
 [download-image]: https://img.shields.io/npm/dm/koa-imsession.svg?style=flat-square
 [download-url]: https://npmjs.org/package/koa-imsession
 
-Pretty simple and performance session middleware for Koa using immutability.
+Pretty simple and performance session middleware for [koa](https://github.com/koajs/koa) using immutability.
 
 ## Installation
 
-```js
+```shell
 $ npm install koa-imsession
 ```
 
@@ -21,28 +21,28 @@ $ npm install koa-imsession
 
 ### Set session (e.g. login)
 
-```js
-ctx.session = { id: 1, status: 'pending' }
+```ts
+ctx.session = { id: 1, state: 'pending' }
 ```
 
 ### Update session
 
 **Session data is immutable.** Set the session to a new object.
 
-```js
+```ts
 const oldSession = ctx.session
-ctx.session = { ...oldSession, status: 'activated' }
+ctx.session = { ...oldSession, state: 'activated' }
 ```
 
 ### Destroy session (e.g. logout)
 
-```js
+```ts
 ctx.session = false // the `Set-Cookie` header will be sent to remove the cookie
 ```
 
 ### Manually regenerate session ID (e.g. renew session)
 
-```js
+```ts
 ctx.session = true // a new session ID is generated and the existing session data is preserved
 ```
 
@@ -52,17 +52,20 @@ For session auto-renewal see [Redis session store and session auto-renewal](#red
 
 ### View counter
 
-```js
+```ts
 import { imsession } from 'koa-imsession'
 import Koa from 'koa'
 
 const app = new Koa()
 
-// All options are optional.
+/**
+ * All options are optional, except the `store` MUST be set to a custom store
+ * (eg. Redis) on production.
+ */
 const options = {
-  name: 'connsid',     // the name of the session ID cookie
+  name: 'connsid',     // the name of the session ID cookie, default value is `connsid`
   // idResolver,       // session ID resolver which gets/sets/generates the session ID
-  // store,            // set custom session store instead of the default `MemoryStore` instance
+  // store,            // session store, default value is a `MemoryStore` instance for development
   cookie: {            // cookie options, see https://github.com/pillarjs/cookies
     maxAge: 86400_000, // default value is 1 day
   },
@@ -81,14 +84,20 @@ app.listen(3000)
 
 ### Redis session store and session auto-renewal
 
-The builtin `MemoryStore` is used by default for development and testing purpose only. A custom session store must be set for production environment.
+The builtin `MemoryStore` is used by default for development and testing purpose only. A custom session store must be set on production environment.
 
-```js
-import type { SessionStore as ISessionStore, SessionData } from 'koa-imsession'
+```ts
+import type { SessionStore, SessionData } from 'koa-imsession'
 import { TTL_MS } from 'koa-imsession'
-import redis from './redis.js' // ioredis
+import redis from './redis.js' // github.com/redis/ioredis
 
-export class SessionStore<T extends SessionData> implements ISessionStore<T> {
+/**
+ * A Redis session store.
+ */
+export class RedisSessionStore<T extends SessionData> implements SessionStore<T> {
+  /**
+   * Returns session data and TTL_MS.
+   */
   async get(sessionId: string): Promise<T | null> {
     const tx = redis.multi()
     tx.get(sessionId) // data
@@ -103,9 +112,9 @@ export class SessionStore<T extends SessionData> implements ISessionStore<T> {
     if (ttl as number > 0) {
       // AUTO RENEWAL happens here!!!
 
-      // Set the `TTL_MS` symbol property, koa-imsession will check whether
-      // it is less than cookie's `maxAge/3`, if true the session will be
-      // renewed automatically.
+      // Set the `TTL_MS` symbol property, koa-imsession will check whether it
+      // is less than cookie's `maxAge/3`, if true the session will be renewed
+      // automatically.
       sessionData[TTL_MS] = (ttl as number) * 1000
     }
 
@@ -127,7 +136,7 @@ export class SessionStore<T extends SessionData> implements ISessionStore<T> {
 
 You may want to get the `Bearer` access token from the `Authorization` header.
 
-```js
+```ts
 import type Cookies from 'cookies'
 import type Koa from 'koa'
 import { SessionIdResolver as CookieSessionIdResolver } from 'koa-imsession'

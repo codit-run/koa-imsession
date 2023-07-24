@@ -3,7 +3,8 @@ import type Koa from 'koa'
 
 import { MemoryStore } from './memory-store.js'
 import { SessionIdResolver } from './sessionid-resolver.js'
-import { TTL_MS, type SessionData, type SessionOptions } from './types.js'
+import type { SessionData, SessionOptions } from './types.js'
+import { TTL_MS } from './types.js'
 
 const debug = Debug('koa-imsession')
 const SESSION = Symbol('SESSION')
