@@ -36,11 +36,10 @@ export interface SessionOptions {
 export const TTL_MS = Symbol('TTL_MS')
 
 export interface SessionData {
-  [key: string]: any
   [TTL_MS]?: number
 }
 
-export interface SessionStore<T extends SessionData = SessionData> {
+export interface SessionStore<T extends SessionData> {
   get(sessionId: string): Promise<T | null>
   set(sessionId: string, sessionData: T, ttlMs: number): Promise<void>
   destroy(sessionId: string): Promise<void>

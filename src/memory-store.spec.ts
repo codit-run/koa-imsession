@@ -2,50 +2,51 @@ import { test, expect } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { MemoryStore } from './memory-store.js'
+import { SessionData } from './types.js'
 
-async function createEntry(store: MemoryStore<object>, ttlMs: number) {
-  const id = randomSessionId()
-  const data = { id: 1 }
+interface Data extends SessionData {
+  id: string
+}
+
+const store = new MemoryStore<Data>()
+
+async function createEntry(ttlMs = 10) {
+  const { id, data } = randomSession()
   await store.set(id, data, ttlMs)
   return { id, data }
 }
 
-function randomSessionId() {
-  return randomBytes(16).toString('base64url')
+function randomSession() {
+  const id = randomBytes(16).toString('base64url')
+  const data = { id: randomBytes(16).toString('base64url') }
+  return { id, data }
 }
 
 test('sets object', async () => {
-  const store = new MemoryStore()
-  const sessionId = randomSessionId()
-  const sessionData = { id: 1 }
+  const { id, data } = randomSession()
 
-  expect(await store.set(sessionId, { ...sessionData }, 10)).toBeUndefined()
-  expect(await store.get(sessionId)).toStrictEqual(sessionData)
+  expect(await store.set(id, { ...data }, 10)).toBeUndefined()
+  expect(await store.get(id)).toStrictEqual(data)
 })
 
 const primitiveData = [null, undefined, 100, true]
-test.each(primitiveData)('sets primitive', async (primitive) => {
-  const store = new MemoryStore()
-  const sessionId = randomSessionId()
+test.each(primitiveData)('sets primitive of "%s"', async (primitive) => {
+  const { id } = randomSession()
 
-  await expect(store.set(sessionId, primitive as any, 10)).rejects.toThrow('session data must be an object')
+  await expect(store.set(id, primitive as any, 10)).rejects.toThrow('session data must be an object')
 })
 
 test('gets nonexistent', async () => {
-  const store = new MemoryStore()
   expect(await store.get('nonexistent')).toBeNull()
 })
 
 test('gets existing', async () => {
-  const store = new MemoryStore()
-  const session = await createEntry(store, 10)
-
+  const session = await createEntry()
   expect(await store.get(session.id)).toStrictEqual(session.data)
 })
 
 test('gets expired', async () => {
-  const store = new MemoryStore()
-  const session = await createEntry(store, 4)
+  const session = await createEntry(4)
 
   expect(await store.get(session.id)).toStrictEqual(session.data)
   await sleep(10)
@@ -53,16 +54,14 @@ test('gets expired', async () => {
 })
 
 test('destroys nonexistent', async () => {
-  const store = new MemoryStore()
-  const sessionId = randomSessionId()
+  const id = randomSession()
 
-  expect(await store.destroy(sessionId)).toBeUndefined()
-  expect(await store.get(sessionId)).toBeNull()
+  expect(await store.destroy('nonexistent')).toBeUndefined()
+  expect(await store.get('nonexistent')).toBeNull()
 })
 
 test('destroys existing', async () => {
-  const store = new MemoryStore()
-  const session = await createEntry(store, 10)
+  const session = await createEntry()
 
   expect(await store.destroy(session.id)).toBeUndefined()
   expect(await store.get(session.id)).toBeNull()
