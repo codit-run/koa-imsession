@@ -1,13 +1,16 @@
 # koa-imsession
 
-[![NPM version][npm-image]][npm-url]
-[![Node.js CI](https://github.com/codit-run/koa-imsession/actions/workflows/nodejs.yml/badge.svg)](https://github.com/codit-run/koa-imsession/actions/workflows/nodejs.yml)
-[![npm download][download-image]][download-url]
+[![npm][npm-img]][npm-url]
+[![build status][build-img]][build-img]
+[![npm download][download-img]][download-url]
 
-[npm-image]: https://img.shields.io/npm/v/koa-imsession.svg?style=flat-square
-[npm-url]: https://npmjs.org/package/koa-imsession
-[download-image]: https://img.shields.io/npm/dm/koa-imsession.svg?style=flat-square
-[download-url]: https://npmjs.org/package/koa-imsession
+[npm-img]: https://img.shields.io/npm/v/koa-imsession.svg
+[npm-url]: https://www.npmjs.org/package/koa-imsession
+[build-img]: https://github.com/codit-run/koa-imsession/actions/workflows/ci.yml/badge.svg
+[build-url]: https://github.com/codit-run/koa-imsession/actions/workflows/ci.yml
+[download-img]: https://img.shields.io/npm/dm/koa-imsession.svg
+[download-url]: https://www.npmjs.org/package/koa-imsession
+
 
 Pretty simple and performance session middleware for [koa](https://github.com/koajs/koa) using immutability.
 
