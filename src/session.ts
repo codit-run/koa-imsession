@@ -14,9 +14,6 @@ declare module 'koa' {
   interface DefaultContext {
     get session(): SessionData | null
     set session(data: SessionData | boolean)
-
-    // FIXME: https://github.com/DefinitelyTyped/DefinitelyTyped/pull/65976
-    [key: keyof any]: any
   }
 }
 
