@@ -2,7 +2,7 @@
   "name": "koa-imsession",
   "description": "Pretty simple and performance koa session middleware using immutability",
   "repository": "codit-run/koa-imsession",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "xuxucode",
   "license": "MIT",
   "type": "module",
@@ -29,11 +29,11 @@
   },
   "devDependencies": {
     "@types/debug": "^4.1.8",
-    "@types/koa": "^2.13.7",
+    "@types/koa": "^2.13.8",
     "@types/supertest": "^2.0.12",
     "koa": "^3.0.0-alpha.1",
     "supertest": "^6.3.3",
-    "typescript": "^5.1.6",
-    "vitest": "^0.33.0"
+    "typescript": "^5.2.2",
+    "vitest": "^0.34.3"
   }
 }
