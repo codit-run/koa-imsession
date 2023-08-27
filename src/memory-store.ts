@@ -14,8 +14,8 @@ export class MemoryStore<T extends SessionData> implements SessionStore<T> {
   /**
    * Gets session by the given session ID.
    */
-  async get(sessionId: string): Promise<T | null> {
-    return new Promise<T | null>((resolve, _) => {
+  async get(sessionId: string): Promise<T | undefined> {
+    return new Promise<T | undefined>((resolve, _) => {
       setImmediate(() => {
         const data = this.#getSessionData(sessionId)
         resolve(data)
@@ -56,14 +56,14 @@ export class MemoryStore<T extends SessionData> implements SessionStore<T> {
   /**
    * Gets session data from the store.
    */
-  #getSessionData(sessionId: string): T | null {
+  #getSessionData(sessionId: string): T | undefined {
     const session = this.sessions[sessionId]
-    if (!session) return null
+    if (!session) return
 
     if (session.expires <= Date.now()) {
       // Destroy expired session.
       delete this.sessions[sessionId]
-      return null
+      return
     }
 
     return session.data

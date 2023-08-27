@@ -5,7 +5,7 @@ import request from 'supertest'
 
 import { MemoryStore } from './memory-store.js'
 import { imsession } from './session.js'
-import { TTL_MS } from './types.js'
+import { SessionData, TTL_MS } from './types.js'
 
 export const store = new MemoryStore()
 export const app = new Koa()
@@ -19,7 +19,7 @@ app.use(async ctx => {
       return
     }
     case '/set-session': {
-      ctx.session = { message: 'hello' + (ctx.query.hello ?? '') }
+      ctx.session = { message: 'hello' + (ctx.query.hello ?? '') } as SessionData
       ctx.body = ctx.session
       return
     }
@@ -55,7 +55,7 @@ export function mockStoreTTL(cookieMaxAge: number, storeTTL: number) {
   const spy = vi.spyOn(store, 'get').mockResolvedValue({
     message: 'hello',
     [TTL_MS]: storeTTL,
-  })
+  } as SessionData)
   app.use(imsession(app, { store, cookie: { maxAge: cookieMaxAge } }))
   app.use(async ctx => {
     ctx.body = ctx.session || 'no session'
@@ -126,9 +126,9 @@ interface Cookie {
  * }
  * ```
  */
-export function parseCookie(res: request.Response): Cookie | null {
+export function parseCookie(res: request.Response): Cookie | undefined {
   const cookieString = res.get('Set-Cookie').find(str => str.includes('connsid='))
-  if (!cookieString) return null
+  if (!cookieString) return
 
   const cookie = {} as Cookie
   for (const part of cookieString.split('; ')) {

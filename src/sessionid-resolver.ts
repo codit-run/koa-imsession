@@ -26,8 +26,8 @@ export class SessionIdResolver {
    * By default the cookie value of `options.name` is read. You can override it
    * to provide more methods.
    */
-  get(ctx: Koa.Context): string | null {
-    return ctx.cookies.get(this.options.name, this.options.cookie) || null
+  get(ctx: Koa.Context): string | undefined {
+    return ctx.cookies.get(this.options.name, this.options.cookie)
   }
 
   /**

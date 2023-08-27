@@ -101,17 +101,17 @@ export class RedisSessionStore<T extends SessionData> implements SessionStore<T>
   /**
    * Returns session data and TTL_MS.
    */
-  async get(sessionId: string): Promise<T | null> {
+  async get(sessionId: string): Promise<T | undefined> {
     const tx = redis.multi()
-    tx.get(sessionId) // data
+    tx.get(sessionId) // value
     tx.ttl(sessionId) // ttl in seconds
     const results = await tx.exec()
-    if (!results) return null
+    if (!results) return
 
-    const [[, data], [, ttl]] = results
-    if (!data) return null
+    const [[, value], [, ttl]] = results
+    if (!value) return
 
-    const sessionData = JSON.parse(data as string)
+    const sessionData = JSON.parse(value as string)
     if (ttl as number > 0) {
       // AUTO RENEWAL happens here!!!
 
@@ -150,7 +150,7 @@ export class SessionIdResolver extends CookieSessionIdResolver {
   }
 
   // Overrides `get` method to get the access token from header first.
-  get(ctx: Koa.Context): string | null {
+  get(ctx: Koa.Context): string | undefined {
     return getAccessTokenFromHeader(ctx) ?? super.get(ctx)
   }
 }
@@ -158,15 +158,13 @@ export class SessionIdResolver extends CookieSessionIdResolver {
 /**
  * Gets access token from header.
  */
-function getAccessTokenFromHeader(ctx: Koa.Context): string | null {
+function getAccessTokenFromHeader(ctx: Koa.Context): string | undefined {
   const authorization = ctx.get('Authorization')
-  if (!authorization) return null
+  if (!authorization) return
 
   // Syntax: Bearer 1*SP b64token
   const [scheme, accessToken] = authorization.split(' ', 2)
   if (scheme.toLowerCase() === 'bearer')
-    return accessToken || null
-
-  return null
+    return accessToken
 }
 ```

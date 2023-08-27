@@ -37,7 +37,7 @@ test.each(primitiveData)('sets primitive of "%s"', async (primitive) => {
 })
 
 test('gets nonexistent', async () => {
-  expect(await store.get('nonexistent')).toBeNull()
+  expect(await store.get('nonexistent')).toBeUndefined()
 })
 
 test('gets existing', async () => {
@@ -50,19 +50,19 @@ test('gets expired', async () => {
 
   expect(await store.get(session.id)).toStrictEqual(session.data)
   await sleep(10)
-  expect(await store.get(session.id)).toBeNull()
+  expect(await store.get(session.id)).toBeUndefined()
 })
 
 test('destroys nonexistent', async () => {
   const id = randomSession()
 
   expect(await store.destroy('nonexistent')).toBeUndefined()
-  expect(await store.get('nonexistent')).toBeNull()
+  expect(await store.get('nonexistent')).toBeUndefined()
 })
 
 test('destroys existing', async () => {
   const session = await createEntry()
 
   expect(await store.destroy(session.id)).toBeUndefined()
-  expect(await store.get(session.id)).toBeNull()
+  expect(await store.get(session.id)).toBeUndefined()
 })

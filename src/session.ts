@@ -34,8 +34,8 @@ export function imsession(app: Koa, opts: SessionOptions = {}): Koa.Middleware {
 
   return async function middleware(ctx, next) {
     const session: Session = ctx[SESSION]
-    const sessionId = options.idResolver.get(ctx)
-    const sessionData = sessionId ? await options.store.get(sessionId) : null
+    const sessionId = options.idResolver.get(ctx) || null
+    const sessionData = sessionId && await options.store.get(sessionId) || null
     session.id = sessionId
     session.data = sessionData
 

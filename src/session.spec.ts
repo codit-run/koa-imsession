@@ -1,13 +1,14 @@
-import { beforeEach, test, expect, vi } from 'vitest'
 import request from 'supertest'
+import { beforeEach, expect, test } from 'vitest'
 import {
   app,
   createContext,
-  parseCookie,
   mockStoreTTL,
+  parseCookie,
   sessionAgent,
   store,
 } from './test-utils.js'
+import type { SessionData } from './types.js'
 
 beforeEach(() => {
   store._clear()
@@ -20,7 +21,7 @@ test('gets context.session', () => {
 
 test('sets context.session', () => {
   const ctx = createContext()
-  ctx.session = { id: 1 }
+  ctx.session = { id: 1 } as SessionData
   expect(ctx.session).toStrictEqual({ id: 1 })
 })
 
@@ -86,7 +87,7 @@ test('unsets session', async () => {
     .expect('no session')
   const cookie2 = parseCookie(res2)
   expect(cookie2!.expires!.toUTCString()).toBe('Thu, 01 Jan 1970 00:00:00 GMT') // cookie removal
-  expect(await store.get(cookie!.connsid)).toBeNull() // session destroyed
+  expect(await store.get(cookie!.connsid)).toBeUndefined() // session destroyed
 
   const res3 = await agent
     .get('/unset-session?action=undefined')
@@ -112,7 +113,7 @@ test('regenerates sessionid', async () => {
     .expect({ message: 'hello' })
   const cookie2 = parseCookie(res2)
   expect(cookie2!.connsid).not.toBe(cookie!.connsid) // session ID changed
-  expect(await store.get(cookie!.connsid)).toBeNull() // old session destroyed
+  expect(await store.get(cookie!.connsid)).toBeUndefined() // old session destroyed
   expect(await store.get(cookie2!.connsid)).toStrictEqual({ message: 'hello' }) // new session saved
 })
 

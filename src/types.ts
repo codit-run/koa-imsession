@@ -40,7 +40,7 @@ export interface SessionData {
 }
 
 export interface SessionStore<T extends SessionData> {
-  get(sessionId: string): Promise<T | null>
+  get(sessionId: string): Promise<T | undefined>
   set(sessionId: string, sessionData: T, ttlMs: number): Promise<void>
   destroy(sessionId: string): Promise<void>
 }
